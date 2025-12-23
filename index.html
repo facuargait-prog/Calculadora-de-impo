@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>For People Imports – Calculadora V5 PRO</title>
+<style>
+body{font-family:Arial;background:#f6f9ff;padding:20px}
+h1{color:#0a48c9;text-align:center}
+.container{background:#fff;padding:20px;border-radius:10px}
+input{width:100%;padding:6px}
+table{width:100%;border-collapse:collapse;margin-top:15px}
+th,td{border:1px solid #ccc;padding:6px;text-align:center}
+th{background:#0a48c9;color:#fff}
+button{padding:10px 15px;border:none;border-radius:6px;color:#fff;cursor:pointer}
+.btn-blue{background:#0a48c9}
+.btn-green{background:#1aa34a}
+.desglose{background:#eef3ff;padding:10px;margin-top:10px;border-radius:8px}
+</style>
+</head>
+
+<body>
+
+<h1>FOR PEOPLE IMPORTS</h1>
+<p style="text-align:center">Calculadora Importación Formal – Argentina (V5 PRO)</p>
+
+<div class="container">
+
+Tipo cambio USD→ARS <input id="tc" value="1600">
+IIBB % <input id="iibb" value="3">
+Gastos locales USD <input id="gastos" value="0">
+
+<button class="btn-blue" onclick="agregarFila()">+ Agregar producto</button>
+<button class="btn-green" onclick="exportarExcel()">Exportar Excel</button>
+
+<table id="tabla">
+<thead>
+<tr>
+<th>Producto</th>
+<th>NCM</th>
+<th>Arancel %</th>
+<th>FOB</th>
+<th>Cant</th>
+<th>Flete</th>
+<th>Seguro</th>
+<th>Total USD</th>
+<th>Unit USD</th>
+<th>Total ARS</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+
+<div id="desgloses"></div>
+
+</div>
+
+<script>
+const arancelesNCM = {
+  "85183000":16,
+  "85181000":16,
+  "85258000":35
+};
+
+function agregarFila(){
+  const tbody=document.querySelector("#tabla tbody");
+  const i=tbody.rows.length;
+
+  const row=tbody.insertRow();
+  row.innerHTML=`
+<td><input></td>
+<td><input onblur="autoArancel(this,${i})"></td>
+<td><input></td>
+<td><input type="number"></td>
+<td><input type="number" value="1"></td>
+<td><input type="number"></td>
+<td><input type="number"></td>
+<td id="tusd${i}">0</td>
+<td id="u${i}">0</td>
+<td id="tars${i}">0</td>
+  `;
+}
+
+function autoArancel(el,i){
+  const ncm=el.value;
+  if(arancelesNCM[ncm]){
+    el.parentNode.nextElementSibling.firstChild.value=arancelesNCM[ncm];
+  }
+  calcular(i);
+}
+
+document.addEventListener("input",e=>{
+  const row=e.target.closest("tr");
+  if(!row)return;
+  const i=row.rowIndex-1;
+  calcular(i);
+});
+
+function calcular(i){
+  const row=document.querySelector("#tabla tbody").rows[i];
+  if(!row)return;
+
+  const fob=row.cells[3].firstChild.value||0;
+  const cant=row.cells[4].firstChild.value||0;
+  const flete=row.cells[5].firstChild.value||0;
+  const seguro=row.cells[6].firstChild.value||0;
+  const arancel=row.cells[2].firstChild.value||0;
+  const iibb=document.getElementById("iibb").value/100;
+
+  const fobTot=fob*cant;
+  const cif=fobTot+Number(flete)+Number(seguro);
+  const derechos=cif*(arancel/100);
+  const tasa=cif*0.03;
+  const base=cif+derechos+tasa;
+  const iva=base*0.21;
+  const ivaAd=base*0.105;
+  const gan=base*0.06;
+  const iib=base*iibb;
+
+  const total=cif+derechos+tasa+iva+ivaAd+gan+iib;
+
+  row.cells[7].innerText=total.toFixed(2);
+  row.cells[8].innerText=(total/cant).toFixed(2);
+  row.cells[9].innerText=(total*tc.value).toFixed(0);
+
+  document.getElementById("desgloses").innerHTML=`
+  <div class="desglose">
+  <b>Desglose producto ${i+1}</b><br>
+  FOB total: ${fobTot.toFixed(2)}<br>
+  CIF: ${cif.toFixed(2)}<br>
+  Derechos: ${derechos.toFixed(2)}<br>
+  Tasa: ${tasa.toFixed(2)}<br>
+  IVA: ${iva.toFixed(2)}<br>
+  IVA Adic: ${ivaAd.toFixed(2)}<br>
+  Ganancias: ${gan.toFixed(2)}<br>
+  IIBB: ${iib.toFixed(2)}
+  </div>`;
+}
+
+function exportarExcel(){
+  let csv="Producto,NCM,Total USD,Unit USD,Total ARS\n";
+  document.querySelectorAll("#tabla tbody tr").forEach(r=>{
+    csv+=`${r.cells[0].firstChild.value},${r.cells[1].firstChild.value},${r.cells[7].innerText},${r.cells[8].innerText},${r.cells[9].innerText}\n`;
+  });
+  const blob=new Blob([csv]);
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="for_people_imports.csv";
+  a.click();
+}
+</script>
+
+</body>
+</html>
